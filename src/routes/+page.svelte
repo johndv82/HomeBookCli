@@ -53,10 +53,10 @@
                         class="h-100 shadow-sm border-0 book-card overflow-hidden"
                     >
                         <div class="position-relative">
-                            {#if book.cover_image}
+                            {#if book.cover_url}
                                 <CardImg
                                     top
-                                    src={book.cover_image}
+                                    src={book.cover_url}
                                     alt={book.title}
                                     style="height: 320px; object-fit: cover;"
                                 />
@@ -85,7 +85,6 @@
                         </div>
                         <CardBody class="d-flex flex-column p-3">
                             <CardTitle
-                                tag="h6"
                                 class="mb-1 fw-bold text-truncate"
                                 title={book.title}>{book.title}</CardTitle
                             >
@@ -116,11 +115,11 @@
         border-bottom: 1px solid #dee2e6;
     }
 
-    .book-card {
+    :global(.book-card) {
         transition: all 0.3s ease;
     }
 
-    .book-card:hover {
+    :global(.book-card:hover) {
         transform: translateY(-5px);
         box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
     }
@@ -136,7 +135,7 @@
         transition: opacity 0.3s ease;
     }
 
-    .book-card:hover .card-overlay {
+    :global(.book-card:hover) .card-overlay {
         opacity: 1;
     }
 </style>

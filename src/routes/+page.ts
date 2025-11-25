@@ -6,16 +6,23 @@ export const load: PageLoad = async ({ fetch }) => {
         const res = await fetch(`${API_BASE_URL}/api/books/books`);
         if (!res.ok) {
             console.error('Failed to fetch books:', res.statusText);
-            return { books: [] };
+            return { books: [], pagination: null };
         }
         const data = await res.json();
-        // Assuming the API returns an array of books directly, or a paginated response.
-        // If it's paginated, it might be data.results.
-        // For now, let's assume it might be data or data.results.
-        const books = Array.isArray(data) ? data : (data.results || []);
-        return { books };
+
+        // Handle the specific paginated structure
+        const books = data.results || [];
+        const pagination = {
+            total_items: data.total_items,
+            total_pages: data.total_pages,
+            current_page: data.current_page,
+            next: data.next,
+            previous: data.previous
+        };
+
+        return { books, pagination };
     } catch (error) {
         console.error('Error fetching books:', error);
-        return { books: [] };
+        return { books: [], pagination: null };
     }
 };
