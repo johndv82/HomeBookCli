@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import {
         Container,
         Row,
@@ -11,20 +12,200 @@
         Button,
         CardImg,
     } from "@sveltestrap/sveltestrap";
+    import { API_BASE_URL } from "$lib/constants";
+
+    interface User {
+        id: number;
+        username: string;
+        email: string;
+        first_name: string;
+        last_name: string;
+    }
 
     let { data } = $props();
+    let user = $state<User | null>(null);
+    let isAuthenticated = $state(false);
+    let authLoading = $state(true);
+
+    onMount(async () => {
+        console.log("Component mounted, starting auth check...");
+        await checkAuth();
+        // authLoading = false; // Moved to finally block in checkAuth
+    });
+
+    const CACHE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+    async function checkAuth() {
+        const token = localStorage.getItem("access_token");
+        console.log(
+            "Checking token in localStorage:",
+            token ? "Found" : "Not found",
+        );
+
+        if (!token) {
+            authLoading = false;
+            return;
+        }
+
+        // Check cache first
+        const lastFetched = Number(
+            localStorage.getItem("user_last_fetched") || "0",
+        );
+        const now = Date.now();
+        const cachedUser = localStorage.getItem("user_profile");
+
+        if (cachedUser && now - lastFetched < CACHE_INTERVAL) {
+            console.log("Using cached user profile");
+            user = JSON.parse(cachedUser);
+            isAuthenticated = true;
+            authLoading = false;
+            return;
+        }
+
+        try {
+            // Verify token
+            console.log("Verifying token with backend...");
+            const verifyRes = await fetch(`${API_BASE_URL}/auth/jwt/verify/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token }),
+            });
+
+            console.log("Verify response status:", verifyRes.status);
+
+            if (verifyRes.ok) {
+                console.log("Token is valid, fetching user profile...");
+                await fetchUser(token);
+            } else if (verifyRes.status === 429) {
+                console.warn("Verify throttled (429).");
+                if (cachedUser) {
+                    console.log("Using cached user profile as fallback");
+                    user = JSON.parse(cachedUser);
+                    isAuthenticated = true;
+                }
+            } else {
+                console.warn("Token invalid or expired, attempting refresh...");
+                await refreshToken();
+            }
+        } catch (err) {
+            console.error("Auth check failed with error:", err);
+            // Don't logout immediately on network error, maybe just fail silently for now
+            if (cachedUser) {
+                user = JSON.parse(cachedUser);
+                isAuthenticated = true;
+            }
+        } finally {
+            authLoading = false;
+        }
+    }
+
+    async function refreshToken() {
+        const refresh = localStorage.getItem("refresh_token");
+        if (!refresh) {
+            console.warn("No refresh token found, logging out.");
+            logout();
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/jwt/refresh/`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ refresh }),
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                console.log("Token refreshed successfully.");
+                localStorage.setItem("access_token", data.access);
+                await fetchUser(data.access);
+            } else {
+                console.error("Refresh failed:", res.status);
+                logout();
+            }
+        } catch (err) {
+            console.error("Refresh error:", err);
+            logout();
+        }
+    }
+
+    async function fetchUser(token: string) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/users/me/`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+                user = await res.json();
+                console.log("User fetched successfully:", user);
+                isAuthenticated = true;
+                // Cache user profile
+                localStorage.setItem("user_profile", JSON.stringify(user));
+                localStorage.setItem(
+                    "user_last_fetched",
+                    Date.now().toString(),
+                );
+            } else if (res.status === 429) {
+                console.warn("Fetch user throttled (429)");
+                // Try to use cache even if expired?
+                const cachedUser = localStorage.getItem("user_profile");
+                if (cachedUser) {
+                    user = JSON.parse(cachedUser);
+                    isAuthenticated = true;
+                }
+            } else {
+                console.error("Failed to fetch user profile:", res.status);
+            }
+        } catch (err) {
+            console.error("Error fetching user:", err);
+        }
+    }
+
+    function logout() {
+        console.log("Logging out...");
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user_profile");
+        localStorage.removeItem("user_last_fetched");
+        localStorage.removeItem("token_last_verified");
+        isAuthenticated = false;
+        user = null;
+    }
 </script>
 
 <div class="hero-section text-center py-5 mb-5">
     <Container>
-        <h1 class="display-4 fw-bold mb-3">Bienvenido a HomeBook</h1>
-        <p class="lead text-muted mb-4">
-            Descubre mundos, historias y conocimientos en nuestra colección
-            curada de libros.
-        </p>
-        <Button color="primary" size="lg" class="px-5 rounded-pill shadow-sm"
-            >Explorar Catálogo</Button
-        >
+        {#if authLoading}
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        {:else if isAuthenticated && user}
+            <h1 class="display-4 fw-bold mb-3">
+                Hola, {user.first_name || user.username}!
+            </h1>
+            <p class="lead text-muted mb-4">
+                Nos alegra verte de nuevo. ¿Qué te gustaría leer hoy?
+            </p>
+        {:else}
+            <h1 class="display-4 fw-bold mb-3">Bienvenido a HomeBook</h1>
+            <p class="lead text-muted mb-4">
+                Descubre mundos, historias y conocimientos en nuestra colección
+                curada de libros.
+            </p>
+            <div class="d-flex justify-content-center gap-3">
+                <Button
+                    color="primary"
+                    size="lg"
+                    class="px-5 rounded-pill shadow-sm"
+                    >Explorar Catálogo</Button
+                >
+                <Button
+                    color="outline-primary"
+                    size="lg"
+                    class="px-5 rounded-pill shadow-sm"
+                    href="/login">Iniciar Sesión</Button
+                >
+            </div>
+        {/if}
     </Container>
 </div>
 

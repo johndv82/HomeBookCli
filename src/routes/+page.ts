@@ -5,7 +5,11 @@ export const load: PageLoad = async ({ fetch }) => {
     try {
         const res = await fetch(`${API_BASE_URL}/api/books/books`);
         if (!res.ok) {
-            console.error('Failed to fetch books:', res.statusText);
+            if (res.status === 429) {
+                console.warn('Rate limit exceeded (429). Please wait a moment before refreshing.');
+            } else {
+                console.error('Failed to fetch books:', res.status, res.statusText);
+            }
             return { books: [], pagination: null };
         }
         const data = await res.json();
