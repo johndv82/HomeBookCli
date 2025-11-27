@@ -11,7 +11,7 @@ export interface Book {
     cover_url: string;
     price: string;
     stock: number;
-    author?: string; // Kept as optional for UI compatibility, though not in example JSON
+    author?: string;
 }
 
 export interface PaginatedBooksResponse {
@@ -21,4 +21,19 @@ export interface PaginatedBooksResponse {
     next: string | null;
     previous: string | null;
     results: Book[];
+}
+
+export interface User {
+    id: number;
+    username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+}
+
+export interface AuthState {
+    user: User | null;
+    isAuthenticated: boolean;
+    loading: boolean;
+    error: string | null;
 }

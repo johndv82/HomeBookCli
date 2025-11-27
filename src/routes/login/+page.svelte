@@ -3,21 +3,18 @@
         Container,
         Card,
         CardBody,
-        Form,
         FormGroup,
         Input,
         Label,
         Button,
         Alert,
     } from "@sveltestrap/sveltestrap";
-    import { API_BASE_URL } from "$lib/constants";
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
+    import { auth } from "$lib/auth.svelte";
 
     let email = $state("");
     let password = $state("");
-    let error = $state("");
-    let loading = $state(false);
 
     // Check if user just registered
     let registered = $derived(
@@ -26,46 +23,10 @@
 
     async function handleLogin(e: Event) {
         e.preventDefault();
-        error = "";
-        loading = true;
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/auth/jwt/create/`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    email,
-                    password,
-                }),
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                localStorage.setItem("access_token", data.access);
-                localStorage.setItem("refresh_token", data.refresh);
-                // Redirect to home or previous page
-                goto("/");
-            } else {
-                console.error(
-                    "Login failed:",
-                    response.status,
-                    response.statusText,
-                );
-                try {
-                    const data = await response.json();
-                    error = data.detail || "Credenciales inválidas";
-                } catch (parseError) {
-                    error = `Error ${response.status}: ${response.statusText}`;
-                }
-            }
-        } catch (err) {
-            console.error("Login error:", err);
-            error =
-                "Error de conexión con el servidor. Verifique que el backend esté corriendo.";
-        } finally {
-            loading = false;
+        const success = await auth.login(email, password);
+        if (success) {
+            goto("/");
         }
     }
 </script>
@@ -86,8 +47,8 @@
                         </Alert>
                     {/if}
 
-                    {#if error}
-                        <Alert color="danger">{error}</Alert>
+                    {#if auth.error}
+                        <Alert color="danger">{auth.error}</Alert>
                     {/if}
 
                     <form onsubmit={handleLogin}>
@@ -118,9 +79,9 @@
                             block
                             class="w-100 mb-3"
                             type="submit"
-                            disabled={loading}
+                            disabled={auth.loading}
                         >
-                            {loading ? "Ingresando..." : "Ingresar"}
+                            {auth.loading ? "Ingresando..." : "Ingresar"}
                         </Button>
                         <div class="text-center">
                             <small class="text-muted"
