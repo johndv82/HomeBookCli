@@ -14,6 +14,33 @@ export interface Book {
     author?: string;
 }
 
+export interface Author {
+    id: number;
+    olid: string | null;
+    name: string | null;
+    bio: string | null;
+    birth_date: string | null;
+    death_date: string | null;
+}
+
+export interface BookDetail {
+    id: number;
+    olid: string;
+    isbn_10: string | null;
+    isbn_13: string | null;
+    title: string;
+    subtitle: string | null;
+    description: string | null;
+    published_year: string;
+    pages: number | null;
+    language: string;
+    cover_url: string;
+    price: string;
+    stock: number;
+    authors: Author[];
+    categories: any[];
+}
+
 export interface PaginatedBooksResponse {
     total_items: number;
     total_pages: number;

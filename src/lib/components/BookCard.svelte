@@ -35,7 +35,8 @@
             <Button
                 color="light"
                 class="rounded-circle mx-1 shadow-sm"
-                title="Ver Detalles">👁️</Button
+                title="Ver Detalles"
+                href={`/books/${book.id}`}>👁️</Button
             >
             <Button
                 color="primary"

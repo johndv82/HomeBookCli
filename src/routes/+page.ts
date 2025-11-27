@@ -1,9 +1,19 @@
 import { API_BASE_URL } from '$lib/constants';
 import type { PageLoad } from './$types';
 
-export const load: PageLoad = async ({ fetch }) => {
+export const load: PageLoad = async ({ fetch, url }) => {
+    const search = url.searchParams.get('search') || '';
+    const ordering = url.searchParams.get('ordering') || '';
+
+    const queryParams = new URLSearchParams();
+    if (search) queryParams.set('search', search);
+    if (ordering) queryParams.set('ordering', ordering);
+
+    const queryString = queryParams.toString();
+    const apiUrl = `${API_BASE_URL}/api/books/books/${queryString ? `?${queryString}` : ''}`;
+
     try {
-        const res = await fetch(`${API_BASE_URL}/api/books/books`);
+        const res = await fetch(apiUrl);
         if (!res.ok) {
             if (res.status === 429) {
                 console.warn('Rate limit exceeded (429). Please wait a moment before refreshing.');
